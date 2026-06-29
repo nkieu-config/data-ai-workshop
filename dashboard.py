@@ -5,6 +5,34 @@ import pandas as pd
 import google.generativeai as genai
 import numpy as np
 
+@st.cache_data(show_spinner="Embedding student database for Semantic Search...")
+def get_cached_embeddings(api_key, _con):
+    genai.configure(api_key=api_key)
+    # Fetch all records
+    df = _con.execute("SELECT source_row_no, student_no, rag_document_title, rag_document_text, source_url FROM trusted_student_snapshot").df()
+    texts = df['rag_document_text'].tolist()
+    
+    # Fallback list for embedding models
+    model_names = ['models/text-embedding-004', 'text-embedding-004', 'models/embedding-001', 'embedding-001']
+    embeddings = None
+    working_model = None
+    last_err = None
+    
+    for m_name in model_names:
+        try:
+            response = genai.embed_content(model=m_name, content=texts)
+            embeddings = np.array(response['embedding'])
+            working_model = m_name
+            break
+        except Exception as e:
+            last_err = e
+            continue
+            
+    if embeddings is None:
+        raise last_err
+        
+    return df, embeddings, working_model
+
 # Page Config
 st.set_page_config(
     page_title="TU Student Analytics Dashboard",
@@ -32,17 +60,6 @@ if not os.path.exists(db_path):
     st.info("Run command: `python3 pipeline.py --business-date 2026-06-28 --run-id FIRST_RUN`")
 else:
     con = duckdb.connect(db_path, read_only=True)
-
-@st.cache_data(show_spinner="Embedding student database for Semantic Search...")
-def get_cached_embeddings(api_key, _con):
-    genai.configure(api_key=api_key)
-    # Fetch all records
-    df = _con.execute("SELECT source_row_no, student_no, rag_document_title, rag_document_text, source_url FROM trusted_student_snapshot").df()
-    texts = df['rag_document_text'].tolist()
-    # Call Gemini embedding API
-    response = genai.embed_content(model="models/text-embedding-004", content=texts)
-    embeddings = np.array(response['embedding'])
-    return df, embeddings
     
     # ----------------------------------------------------
     # Metrics
@@ -170,11 +187,11 @@ def get_cached_embeddings(api_key, _con):
                 # Semantic Search Pathway
                 try:
                     # 1. Load cached embeddings and DataFrame
-                    df_all, embeddings = get_cached_embeddings(gemini_api_key, con)
+                    df_all, embeddings, working_model = get_cached_embeddings(gemini_api_key, con)
                     
-                    # 2. Embed user query
+                    # 2. Embed user query using the same working model
                     genai.configure(api_key=gemini_api_key)
-                    query_resp = genai.embed_content(model="models/text-embedding-004", content=user_query)
+                    query_resp = genai.embed_content(model=working_model, content=user_query)
                     query_vector = np.array(query_resp['embedding'])
                     
                     # 3. Calculate Cosine Similarity
