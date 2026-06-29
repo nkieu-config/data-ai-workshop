@@ -30,7 +30,7 @@ if not os.path.exists(db_path):
     st.error("❌ Database file not found. Please run the pipeline script first to ingest data.")
     st.info("Run command: `python3 pipeline.py --business-date 2026-06-28 --run-id FIRST_RUN`")
 else:
-    con = duckdb.connect(db_path)
+    con = duckdb.connect(db_path, read_only=True)
     
     # ----------------------------------------------------
     # Metrics
@@ -47,7 +47,7 @@ else:
     total_students, avg_gpa, avg_salary, avg_credits = metrics
     
     # Create Tabs
-    tab1, tab2, tab3 = st.tabs(["📊 Analytics Dashboard", "📋 Audit Logs", "🤖 RAG Q&A (Keyword-Based)"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Analytics Dashboard", "📋 Audit Logs", "🤖 RAG Q&A", "💾 SQL Explorer"])
     
     with tab1:
         # ----------------------------------------------------
@@ -232,5 +232,21 @@ User Question:
 
             st.markdown("### 🧩 Retrieved Context Details:")
             st.dataframe(retrieved_df, use_container_width=True)
+
+    with tab4:
+        st.subheader("💾 SQL Explorer (DuckDB)")
+        st.markdown("Run custom SQL queries directly against the DuckDB Trusted Layer. The database is in **Read-Only** mode for safety.")
+        
+        default_query = "SELECT * FROM trusted_student_snapshot LIMIT 100;"
+        user_sql = st.text_area("SQL Query:", value=default_query, height=150)
+        
+        if st.button("▶️ Run Query"):
+            with st.spinner("Executing query..."):
+                try:
+                    result_df = con.execute(user_sql).df()
+                    st.success(f"✅ Query executed successfully. Returned {len(result_df)} rows.")
+                    st.dataframe(result_df, use_container_width=True)
+                except Exception as e:
+                    st.error(f"❌ Error executing query: {e}")
     
     con.close()
