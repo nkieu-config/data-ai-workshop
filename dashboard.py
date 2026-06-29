@@ -3,6 +3,7 @@ import streamlit as st
 import duckdb
 import pandas as pd
 import google.generativeai as genai
+import numpy as np
 
 # Page Config
 st.set_page_config(
@@ -31,6 +32,17 @@ if not os.path.exists(db_path):
     st.info("Run command: `python3 pipeline.py --business-date 2026-06-28 --run-id FIRST_RUN`")
 else:
     con = duckdb.connect(db_path, read_only=True)
+
+@st.cache_data(show_spinner="Embedding student database for Semantic Search...")
+def get_cached_embeddings(api_key, _con):
+    genai.configure(api_key=api_key)
+    # Fetch all records
+    df = _con.execute("SELECT source_row_no, student_no, rag_document_title, rag_document_text, source_url FROM trusted_student_snapshot").df()
+    texts = df['rag_document_text'].tolist()
+    # Call Gemini embedding API
+    response = genai.embed_content(model="models/text-embedding-004", content=texts)
+    embeddings = np.array(response['embedding'])
+    return df, embeddings
     
     # ----------------------------------------------------
     # Metrics
@@ -142,51 +154,91 @@ else:
         # RAG Q&A Section (LLM Powered)
         # ----------------------------------------------------
         st.subheader("🤖 RAG Question Answering (Powered by Gemini)")
-        st.markdown("This uses **Retrieval Augmented Generation (RAG)** by searching the `rag_document_text` column and sending the context to Google's Gemini model to generate a final answer.")
         
+        if gemini_api_key:
+            st.markdown("This uses **Semantic Search (Vector Search)** by generating text embeddings using `text-embedding-004` and searching via Cosine Similarity.")
+        else:
+            st.markdown("This uses **Keyword-based Search** as a fallback since no Gemini API Key is configured in the sidebar.")
+            
         user_query = st.text_input("Ask a question about the students (e.g., 'What are the top career interests?', 'Who is visual learner?', 'Tell me about SK0005'):", "")
         
         if user_query:
-            # Improved keyword matching: split query into words > 3 chars
-            import re
-            words = [w for w in re.split(r'\W+', user_query) if len(w) > 3]
-            if not words:
-                words = [user_query]
+            retrieved_df = pd.DataFrame()
+            context_str = ""
             
-            conditions = []
-            params = []
-            for w in words[:5]: # limit to 5 keywords to avoid huge queries
-                search_term = f"%{w}%"
-                conditions.append("(LOWER(rag_keywords) LIKE LOWER(?) OR LOWER(rag_document_text) LIKE LOWER(?) OR LOWER(student_no) LIKE LOWER(?))")
-                params.extend([search_term, search_term, search_term])
+            if gemini_api_key:
+                # Semantic Search Pathway
+                try:
+                    # 1. Load cached embeddings and DataFrame
+                    df_all, embeddings = get_cached_embeddings(gemini_api_key, con)
+                    
+                    # 2. Embed user query
+                    genai.configure(api_key=gemini_api_key)
+                    query_resp = genai.embed_content(model="models/text-embedding-004", content=user_query)
+                    query_vector = np.array(query_resp['embedding'])
+                    
+                    # 3. Calculate Cosine Similarity
+                    dot_product = np.dot(embeddings, query_vector)
+                    norms = np.linalg.norm(embeddings, axis=1) * np.linalg.norm(query_vector)
+                    similarities = dot_product / (norms + 1e-10) # avoid division by zero
+                    
+                    # 4. Filter and select top 5
+                    retrieved_df = df_all.copy()
+                    retrieved_df['similarity_score'] = similarities
+                    retrieved_df = retrieved_df.sort_values(by='similarity_score', ascending=False).head(5)
+                    
+                    st.success(f"✅ Semantic Search completed. Found {len(retrieved_df)} top matches.")
+                    context_str = "\n".join([
+                        f"Source Row {row['source_row_no']} ({row['student_no']}) [Similarity: {row['similarity_score']:.3f}]: {row['rag_document_text']}" 
+                        for idx, row in retrieved_df.iterrows()
+                    ])
+                    
+                except Exception as e:
+                    st.error(f"Error calculating embeddings or similarities: {e}")
+                    st.info("Falling back to keyword search...")
+                    retrieved_df = pd.DataFrame()
+            
+            # If not gemini_api_key OR semantic search failed
+            if not gemini_api_key or retrieved_df.empty:
+                # Improved keyword matching: split query into words > 3 chars
+                import re
+                words = [w for w in re.split(r'\W+', user_query) if len(w) > 3]
+                if not words:
+                    words = [user_query]
                 
-            where_clause = " OR ".join(conditions)
-            
-            # Fetch metadata columns required by the assessment
-            retrieved_df = con.execute(f"""
-                SELECT 
-                    source_row_no,
-                    student_no,
-                    rag_document_title,
-                    rag_document_text,
-                    source_url
-                FROM trusted_student_snapshot
-                WHERE {where_clause}
-                LIMIT 5
-            """, params).df()
-            
-            if retrieved_df.empty:
-                st.warning("⚠️ No relevant documents found in the workbook for this query.")
-                context_str = ""
-            else:
-                st.success(f"✅ Found {len(retrieved_df)} relevant chunk(s).")
-                context_str = "\n".join([f"Source Row {row['source_row_no']} ({row['student_no']}): {row['rag_document_text']}" for idx, row in retrieved_df.iterrows()])
+                conditions = []
+                params = []
+                for w in words[:5]: 
+                    search_term = f"%{w}%"
+                    conditions.append("(LOWER(rag_keywords) LIKE LOWER(?) OR LOWER(rag_document_text) LIKE LOWER(?) OR LOWER(student_no) LIKE LOWER(?))")
+                    params.extend([search_term, search_term, search_term])
+                    
+                where_clause = " OR ".join(conditions)
                 
+                retrieved_df = con.execute(f"""
+                    SELECT 
+                        source_row_no,
+                        student_no,
+                        rag_document_title,
+                        rag_document_text,
+                        source_url
+                    FROM trusted_student_snapshot
+                    WHERE {where_clause}
+                    LIMIT 5
+                """, params).df()
+                
+                if retrieved_df.empty:
+                    st.warning("⚠️ No relevant documents found in the workbook for this query.")
+                    context_str = ""
+                else:
+                    st.success(f"✅ Keyword Search found {len(retrieved_df)} relevant chunk(s).")
+                    context_str = "\n".join([f"Source Row {row['source_row_no']} ({row['student_no']}): {row['rag_document_text']}" for idx, row in retrieved_df.iterrows()])
+
+            # Now generate answer using LLM
             if gemini_api_key:
                 with st.spinner("Generating answer using Gemini..."):
                     try:
                         genai.configure(api_key=gemini_api_key)
-                        
                         system_instruction = """You are a helpful assistant for the Thammasat Data & AI Workshop.
 Answer the user's question ONLY using the provided retrieved context from the Excel workbook.
 If the answer is not in the context, say "I cannot find the answer in the provided workbook."
