@@ -4,3 +4,4 @@ duckdb
 streamlit
 google-generativeai
 cryptography
+sentence-transformers

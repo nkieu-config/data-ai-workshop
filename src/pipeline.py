@@ -7,6 +7,8 @@ import logging
 import pandas as pd
 import duckdb
 from cryptography.fernet import Fernet
+import google.generativeai as genai
+from sentence_transformers import SentenceTransformer
 
 # Configure Logging
 logging.basicConfig(
@@ -110,21 +112,30 @@ def main():
         stg_df['snapshot_date'] = stg_df['snapshot_date'].astype(str)
         stg_df['entity_id'] = stg_df['entity_id'].astype(str)
         
-        # PII Encryption (Instructor requested deviation from original spec)
-        # We use a static key for workshop idempotency so re-runs produce same ciphertext
-        STATIC_KEY = b'6QkUf3k_4P12GfI8zJ9wE8bN6nJ0tX8qW2qV7fN5vL0='
-        f = Fernet(STATIC_KEY)
-        
-        def encrypt_val(val):
-            if pd.isna(val):
-                return val
-            return f.encrypt(str(val).encode('utf-8')).decode('utf-8')
-            
-        pii_cols = ['citizen_id', 'mobile', 'email', 'student_name']
-        for col in pii_cols:
-            if col in stg_df.columns:
-                stg_df[col] = stg_df[col].apply(encrypt_val)
-                logger.info(f"Encrypted PII column: {col}")
+        # PII Encryption Key Management (Production Best Practice 1)
+        # By default, to comply with the PDF assessment spec ("No masked, hashed, or encrypted output columns"),
+        # we ingest PII as plaintext. Setting PII_ENCRYPTION_KEY enables AES encryption.
+        pii_key_env = os.environ.get("PII_ENCRYPTION_KEY")
+        if pii_key_env:
+            logger.info("PII_ENCRYPTION_KEY environment variable found. Enabling PII Encryption...")
+            try:
+                key_to_use = pii_key_env.encode('utf-8')
+                f = Fernet(key_to_use)
+                
+                def encrypt_val(val):
+                    if pd.isna(val):
+                        return val
+                    return f.encrypt(str(val).encode('utf-8')).decode('utf-8')
+                    
+                pii_cols = ['citizen_id', 'mobile', 'email', 'student_name']
+                for col in pii_cols:
+                    if col in stg_df.columns:
+                        stg_df[col] = stg_df[col].apply(encrypt_val)
+                        logger.info(f"Encrypted PII column: {col}")
+            except Exception as e:
+                logger.error(f"Failed to initialize PII encryption: {e}. Proceeding with plaintext.")
+        else:
+            logger.warning("PII_ENCRYPTION_KEY env var not set. Ingesting PII as plaintext (complying with default brief spec).")
         
         # Deduplication Rule: unique (entity_id, snapshot_date)
         initial_len = len(stg_df)
@@ -138,6 +149,22 @@ def main():
         stg_df['batch_date'] = business_date
         stg_df['load_timestamp'] = datetime.datetime.utcnow()
         
+        # 2.1 OFFLINE EMBEDDINGS (Local Nomic Embed v1.5 - Best Practice)
+        logger.info("Generating local vector embeddings using nomic-ai/nomic-embed-text-v1.5...")
+        try:
+            model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+            texts = stg_df['rag_document_text'].tolist()
+            # Prefix search documents as per Nomic model guidelines
+            nomic_texts = [f"search_document: {t}" for t in texts]
+            embeddings = model.encode(nomic_texts, show_progress_bar=False)
+            
+            # Save vectors to DataFrame as float lists (DOUBLE[] in DuckDB)
+            stg_df['vector_embedding'] = [emb.tolist() for emb in embeddings]
+            logger.info("Successfully generated local embeddings for all staging records.")
+        except Exception as e:
+            logger.error(f"Failed to generate local vector embeddings: {e}")
+            raise e
+            
         stg_parquet_path = f"data/stg/stg_student_snapshot_{business_date}.parquet"
         stg_df.to_parquet(stg_parquet_path, index=False)
         logger.info(f"Staging layer saved to {stg_parquet_path}")
@@ -147,9 +174,35 @@ def main():
         # ==========================================
         logger.info("Step 3: Loading into Trusted layer (DuckDB)...")
         
-        # Ensure trusted table exists
-        # DuckDB can register a pandas df as a temporary relation to create table
-        con.execute("CREATE TABLE IF NOT EXISTS trusted_student_snapshot AS SELECT * FROM stg_df WHERE 1=0")
+        # Ensure trusted table exists with matching schema. (Production Best Practice 2: Schema Evolution)
+        table_exists = con.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'trusted_student_snapshot'").fetchone()
+        if table_exists:
+            info_df = con.execute("PRAGMA table_info(trusted_student_snapshot)").df()
+            existing_cols = info_df['name'].tolist()
+            
+            # Check if vector_embedding is stored as a non-array type (e.g. if previous failed run created it as INTEGER)
+            if 'vector_embedding' in existing_cols:
+                vec_type = info_df[info_df['name'] == 'vector_embedding']['type'].values[0]
+                if '[]' not in str(vec_type) and 'LIST' not in str(vec_type) and 'ARRAY' not in str(vec_type):
+                    logger.warning("Table column 'vector_embedding' has incompatible type (non-array). Recreating table...")
+                    con.execute("DROP TABLE trusted_student_snapshot")
+                    table_exists = False
+            
+            if table_exists:
+                for col in stg_df.columns:
+                    if col not in existing_cols:
+                        col_type = "VARCHAR"
+                        if col == 'vector_embedding':
+                            col_type = "DOUBLE[]"
+                        elif pd.api.types.is_integer_dtype(stg_df[col]):
+                            col_type = "BIGINT"
+                        elif pd.api.types.is_float_dtype(stg_df[col]):
+                            col_type = "DOUBLE"
+                        
+                        logger.info(f"Schema Evolution: Adding column '{col}' ({col_type}) to trusted_student_snapshot...")
+                        con.execute(f"ALTER TABLE trusted_student_snapshot ADD COLUMN {col} {col_type}")
+        else:
+            con.execute("CREATE TABLE trusted_student_snapshot AS SELECT * FROM stg_df WHERE 1=0")
         
         # IDEMPOTENCY STRATEGY: Delete existing data for the incoming snapshot_date/business_date
         unique_snapshot_dates = stg_df['snapshot_date'].unique()

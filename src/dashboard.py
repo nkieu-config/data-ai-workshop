@@ -4,34 +4,14 @@ import duckdb
 import pandas as pd
 import google.generativeai as genai
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
-@st.cache_data(show_spinner="Embedding student database for Semantic Search...")
-def get_cached_embeddings(api_key, _con):
-    genai.configure(api_key=api_key)
-    # Fetch all records
-    df = _con.execute("SELECT source_row_no, student_no, rag_document_title, rag_document_text, source_url FROM trusted_student_snapshot").df()
-    texts = df['rag_document_text'].tolist()
-    
-    # Fallback list for embedding models
-    model_names = ['models/text-embedding-004', 'text-embedding-004', 'models/embedding-001', 'embedding-001']
-    embeddings = None
-    working_model = None
-    last_err = None
-    
-    for m_name in model_names:
-        try:
-            response = genai.embed_content(model=m_name, content=texts)
-            embeddings = np.array(response['embedding'])
-            working_model = m_name
-            break
-        except Exception as e:
-            last_err = e
-            continue
-            
-    if embeddings is None:
-        raise last_err
-        
-    return df, embeddings, working_model
+@st.cache_resource
+def load_embedding_model():
+    # Cache the local Nomic Embed model in memory so it only loads once
+    return SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
+
+
 
 # Page Config
 st.set_page_config(
@@ -39,6 +19,49 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide"
 )
+
+# Premium Aesthetics & Custom Styling
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    
+    /* Global Font overrides */
+    html, body, [class*="css"], .stMarkdown, p, div {
+        font-family: 'Outfit', sans-serif !important;
+    }
+    
+    /* Styled Metric Cards */
+    div[data-testid="metric-container"] {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        padding: 18px 24px;
+        border-radius: 14px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+        border-color: #cbd5e1;
+    }
+    
+    /* Tab formatting */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 8px 16px;
+        background-color: #f1f5f9;
+        transition: all 0.2s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("🎓 Thammasat Student Analytics & Pipeline Audit Dashboard")
 
@@ -122,7 +145,7 @@ else:
                 FROM trusted_student_snapshot 
                 GROUP BY campus
             """).df()
-            st.dataframe(campus_df, use_container_width=True)
+            st.dataframe(campus_df, width="stretch")
     
         with right_col:
             st.subheader("📈 GPA Distribution (Undergrad vs Postgrad)")
@@ -140,7 +163,7 @@ else:
                 FROM trusted_student_snapshot 
                 GROUP BY level
             """).df()
-            st.dataframe(level_df, use_container_width=True)
+            st.dataframe(level_df, width="stretch")
 
     with tab2:
         # ----------------------------------------------------
@@ -164,7 +187,7 @@ else:
             ORDER BY start_time DESC
         """).df()
         
-        st.dataframe(audit_df, use_container_width=True)
+        st.dataframe(audit_df, width="stretch")
 
     with tab3:
         # ----------------------------------------------------
@@ -172,10 +195,7 @@ else:
         # ----------------------------------------------------
         st.subheader("🤖 RAG Question Answering (Powered by Gemini)")
         
-        if gemini_api_key:
-            st.markdown("This uses **Semantic Search (Vector Search)** by generating text embeddings using `text-embedding-004` and searching via Cosine Similarity.")
-        else:
-            st.markdown("This uses **Keyword-based Search** as a fallback since no Gemini API Key is configured in the sidebar.")
+        st.markdown("This uses **Semantic Search (Vector Search)** by generating query embeddings via local **Nomic Embed Text v1.5** and calculating Cosine Similarity natively inside DuckDB. No API Key is required for the search phase!")
             
         user_query = st.text_input("Ask a question about the students (e.g., 'What are the top career interests?', 'Who is visual learner?', 'Tell me about SK0005'):", "")
         
@@ -183,40 +203,53 @@ else:
             retrieved_df = pd.DataFrame()
             context_str = ""
             
-            if gemini_api_key:
-                # Semantic Search Pathway
-                try:
-                    # 1. Load cached embeddings and DataFrame
-                    df_all, embeddings, working_model = get_cached_embeddings(gemini_api_key, con)
+            # Semantic Search Pathway using pre-calculated database embeddings (Production Best Practice 3: Vector DB)
+            try:
+                # Install & Load VSS extension natively in DuckDB
+                con.execute("INSTALL vss; LOAD vss;")
+                
+                # 1. We check if the vector_embedding column exists in the schema
+                columns_info = con.execute("PRAGMA table_info(trusted_student_snapshot)").df()
+                has_vectors = 'vector_embedding' in columns_info['name'].values
+                
+                if has_vectors:
+                    # 2. Embed user query locally (0 API requests!)
+                    model = load_embedding_model()
+                    query_vector = model.encode(f"search_query: {user_query}").tolist()
                     
-                    # 2. Embed user query using the same working model
-                    genai.configure(api_key=gemini_api_key)
-                    query_resp = genai.embed_content(model=working_model, content=user_query)
-                    query_vector = np.array(query_resp['embedding'])
+                    # 3. Query native Vector Cosine Similarity inside DuckDB SQL
+                    retrieved_df = con.execute("""
+                        SELECT 
+                            source_row_no, 
+                            student_no, 
+                            rag_document_title, 
+                            rag_document_text, 
+                            source_url,
+                            array_cosine_similarity(vector_embedding::DOUBLE[]::DOUBLE[768], ?::DOUBLE[]::DOUBLE[768]) AS similarity_score
+                        FROM trusted_student_snapshot
+                        WHERE vector_embedding IS NOT NULL
+                        ORDER BY similarity_score DESC
+                        LIMIT 5
+                    """, (query_vector,)).df()
                     
-                    # 3. Calculate Cosine Similarity
-                    dot_product = np.dot(embeddings, query_vector)
-                    norms = np.linalg.norm(embeddings, axis=1) * np.linalg.norm(query_vector)
-                    similarities = dot_product / (norms + 1e-10) # avoid division by zero
+                    if not retrieved_df.empty:
+                        st.success(f"✅ Semantic Search completed inside DuckDB (Local Nomic Embed v1.5). Found {len(retrieved_df)} top matches.")
+                        context_str = "\n".join([
+                            f"Source Row {row['source_row_no']} ({row['student_no']}) [Similarity: {row['similarity_score']:.3f}]: {row['rag_document_text']}" 
+                            for idx, row in retrieved_df.iterrows()
+                        ])
+                    else:
+                        st.warning("⚠️ Database has 'vector_embedding' column, but all entries are NULL. Please run your pipeline to populate vectors.")
+                else:
+                    st.warning("⚠️ 'vector_embedding' column does not exist in the database table schema. Falling back to keyword search...")
                     
-                    # 4. Filter and select top 5
-                    retrieved_df = df_all.copy()
-                    retrieved_df['similarity_score'] = similarities
-                    retrieved_df = retrieved_df.sort_values(by='similarity_score', ascending=False).head(5)
-                    
-                    st.success(f"✅ Semantic Search completed. Found {len(retrieved_df)} top matches.")
-                    context_str = "\n".join([
-                        f"Source Row {row['source_row_no']} ({row['student_no']}) [Similarity: {row['similarity_score']:.3f}]: {row['rag_document_text']}" 
-                        for idx, row in retrieved_df.iterrows()
-                    ])
-                    
-                except Exception as e:
-                    st.error(f"Error calculating embeddings or similarities: {e}")
-                    st.info("Falling back to keyword search...")
-                    retrieved_df = pd.DataFrame()
+            except Exception as e:
+                st.error(f"Error executing database vector search: {e}")
+                st.info("Falling back to keyword search...")
+                retrieved_df = pd.DataFrame()
             
-            # If not gemini_api_key OR semantic search failed
-            if not gemini_api_key or retrieved_df.empty:
+            # If semantic search failed or returned nothing
+            if retrieved_df.empty:
                 # Improved keyword matching: split query into words > 3 chars
                 import re
                 words = [w for w in re.split(r'\W+', user_query) if len(w) > 3]
@@ -272,9 +305,18 @@ User Question:
 """
                         
                         # Fallback mechanism for different model string availabilities
-                        model_names = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
+                        model_names = [
+                            'gemini-2.5-flash', 
+                            'gemini-2.5-flash-8b',
+                            'gemini-1.5-flash', 
+                            'gemini-1.5-pro', 
+                            'gemini-1.5-pro-latest',
+                            'gemini-2.5-pro',
+                            'gemini-1.5-flash-latest', 
+                            'gemini-pro'
+                        ]
                         response = None
-                        last_err = None
+                        errors = []
                         
                         for m_name in model_names:
                             try:
@@ -282,17 +324,21 @@ User Question:
                                 response = model.generate_content(prompt)
                                 break
                             except Exception as e:
-                                last_err = e
+                                errors.append(f"- Model '{m_name}' failed: {e}")
                                 continue
                                 
                         if response is None:
-                            raise last_err
+                            error_summary = "\n".join(errors)
+                            raise Exception(f"All Generative Models failed.\n{error_summary}")
                         
                         st.markdown(f"### ✨ AI Answer (via {model.model_name}):")
                         st.info(response.text)
                     
                     except Exception as e:
-                        st.error(f"Error communicating with Gemini API: {e}")
+                        st.error(f"Error communicating with Gemini API:\n{e}")
+                        st.markdown("### 📝 LLM Prompt Builder (API Limit Fallback)")
+                        st.warning("⚠️ API Quota exceeded. Showing the fully constructed grounded prompt that would have been sent to Gemini:")
+                        st.code(prompt, language="text")
             else:
                 st.warning("⚠️ Gemini API Key is missing. Please enter it in the sidebar to generate an AI answer.")
                 st.markdown("### 📝 LLM Prompt Builder (Fallback mode)")
@@ -300,7 +346,7 @@ User Question:
                 st.code(context_str, language="text")
 
             st.markdown("### 🧩 Retrieved Context Details:")
-            st.dataframe(retrieved_df, use_container_width=True)
+            st.dataframe(retrieved_df, width="stretch")
 
     with tab4:
         st.subheader("💾 SQL Explorer (DuckDB)")
@@ -314,7 +360,7 @@ User Question:
                 try:
                     result_df = con.execute(user_sql).df()
                     st.success(f"✅ Query executed successfully. Returned {len(result_df)} rows.")
-                    st.dataframe(result_df, use_container_width=True)
+                    st.dataframe(result_df, width="stretch")
                 except Exception as e:
                     st.error(f"❌ Error executing query: {e}")
     

@@ -1,48 +1,148 @@
 Cleaned up old data directory.
 
 --- RUN 1: Ingesting dataset for the first time (Date: 2026-06-28) ---
-Executing: python3 pipeline.py --business-date 2026-06-28 --run-id RUN_ID_001
-2026-06-29 11:43:47,501 [INFO] Starting run RUN_ID_001 for business date 2026-06-28
-2026-06-29 11:43:47,501 [INFO] Step 1: Reading Excel file for Raw layer...
-2026-06-29 11:43:47,600 [INFO] Loaded 180 rows from source file.
-2026-06-29 11:43:47,621 [INFO] Raw layer saved to data/raw/raw_workshop_data_2026-06-28.parquet
-2026-06-29 11:43:47,621 [INFO] Step 2: Processing Staging layer...
-2026-06-29 11:43:47,625 [INFO] Staging layer saved to data/stg/stg_student_snapshot_2026-06-28.parquet
-2026-06-29 11:43:47,625 [INFO] Step 3: Loading into Trusted layer (DuckDB)...
-2026-06-29 11:43:47,627 [INFO] Cleaning existing records for snapshot_date: 2026-06-28 to prevent duplication...
-2026-06-29 11:43:47,631 [INFO] Successfully loaded 180 rows into trusted_student_snapshot table.
-2026-06-29 11:43:47,631 [INFO] Successfully created/updated analytics_student_summary view.
-2026-06-29 11:43:47,631 [INFO] Step 4: Running Quality Control Checks...
-2026-06-29 11:43:47,631 [INFO] Verification Results for batch_date 2026-06-28:
-2026-06-29 11:43:47,631 [INFO]  - Row Count: Source = 180 | Database = 180
-2026-06-29 11:43:47,631 [INFO]  - GPA Sum: Source = 540.17 | Database = 540.17
-2026-06-29 11:43:47,631 [INFO]  - Credits Sum: Source = 11599 | Database = 11599
-2026-06-29 11:43:47,631 [INFO]  - Expected Salary Sum: Source = 6481500 | Database = 6481500
-2026-06-29 11:43:47,631 [INFO] QC checks PASSED successfully.
-2026-06-29 11:43:47,632 [INFO] Run RUN_ID_001 completed successfully.
+Executing: python3 src/orchestrate.py --business-date 2026-06-28 --run-id RUN_ID_001
+2026-06-29 15:14:51,239 [INFO] [Orchestrator] GEMINI_API_KEY is not set. Vector embeddings use local Nomic Embed v1.5; Gemini is only needed for LLM answer generation in the dashboard.
+2026-06-29 15:14:51,239 [WARNING] [Orchestrator] PII_ENCRYPTION_KEY environment variable is NOT set. The pipeline will fallback to a default encryption key (unsafe for production!).
+2026-06-29 15:14:51,239 [INFO] [Orchestrator] Attempt 1/4: Starting pipeline execution...
+2026-06-29 15:14:55,872 [INFO] Starting run RUN_ID_001 for business date 2026-06-28
+2026-06-29 15:14:55,872 [INFO] Step 1: Reading Excel file for Raw layer...
+2026-06-29 15:14:55,962 [INFO] Loaded 180 rows from source file.
+2026-06-29 15:14:56,047 [INFO] Raw layer saved to data/raw/raw_workshop_data_2026-06-28.parquet
+2026-06-29 15:14:56,048 [INFO] Step 2: Processing Staging layer...
+2026-06-29 15:14:56,048 [WARNING] PII_ENCRYPTION_KEY env var not set. Ingesting PII as plaintext (complying with default brief spec).
+2026-06-29 15:14:56,052 [INFO] Generating local vector embeddings using nomic-ai/nomic-embed-text-v1.5...
+2026-06-29 15:14:56,070 [INFO] Use pytorch device_name: mps
+2026-06-29 15:14:56,070 [INFO] Load pretrained SentenceTransformer: nomic-ai/nomic-embed-text-v1.5
+2026-06-29 15:14:56,504 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:56,505 [WARNING] Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-29 15:14:56,515 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/modules.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:56,784 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:56,797 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config_sentence_transformers.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:57,118 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:57,138 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config_sentence_transformers.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:57,421 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:57,445 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/README.md "HTTP/1.1 200 OK"
+2026-06-29 15:14:57,709 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:57,719 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/modules.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:57,987 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:57,998 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:58,266 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-06-29 15:14:58,538 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:58,552 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:58,832 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-bert-2048/resolve/main/configuration_hf_nomic_bert.py "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:58,846 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-bert-2048/7710840340a098cfb869c4f65e87cf2b1b70caca/configuration_hf_nomic_bert.py "HTTP/1.1 200 OK"
+2026-06-29 15:14:59,119 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:59,133 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:14:59,433 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-bert-2048/resolve/main/modeling_hf_nomic_bert.py "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:14:59,445 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-bert-2048/7710840340a098cfb869c4f65e87cf2b1b70caca/modeling_hf_nomic_bert.py "HTTP/1.1 200 OK"
+2026-06-29 15:15:01,015 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/pytorch_model.bin "HTTP/1.1 404 Not Found"
+2026-06-29 15:15:01,291 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/model.safetensors "HTTP/1.1 302 Found"
+2026-06-29 15:15:02,014 [WARNING] <All keys matched successfully>
+2026-06-29 15:15:02,275 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:02,286 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:02,553 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-bert-2048/resolve/main/configuration_hf_nomic_bert.py "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:02,568 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-bert-2048/7710840340a098cfb869c4f65e87cf2b1b70caca/configuration_hf_nomic_bert.py "HTTP/1.1 200 OK"
+2026-06-29 15:15:02,831 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:02,841 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:03,112 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:03,123 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:03,391 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:03,402 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:03,722 [INFO] HTTP Request: GET https://huggingface.co/api/models/nomic-ai/nomic-embed-text-v1.5/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-06-29 15:15:03,995 [INFO] HTTP Request: GET https://huggingface.co/api/models/nomic-ai/nomic-embed-text-v1.5/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-06-29 15:15:04,309 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:04,320 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:04,597 [INFO] HTTP Request: GET https://huggingface.co/api/models/nomic-ai/nomic-embed-text-v1.5 "HTTP/1.1 200 OK"
+2026-06-29 15:15:09,312 [INFO] Successfully generated local embeddings for all staging records.
+2026-06-29 15:15:09,338 [INFO] Staging layer saved to data/stg/stg_student_snapshot_2026-06-28.parquet
+2026-06-29 15:15:09,339 [INFO] Step 3: Loading into Trusted layer (DuckDB)...
+2026-06-29 15:15:09,354 [INFO] Cleaning existing records for snapshot_date: 2026-06-28 to prevent duplication...
+2026-06-29 15:15:09,366 [INFO] Successfully loaded 180 rows into trusted_student_snapshot table.
+2026-06-29 15:15:09,368 [INFO] Successfully created/updated analytics_student_summary view.
+2026-06-29 15:15:09,368 [INFO] Step 4: Running Quality Control Checks...
+2026-06-29 15:15:09,370 [INFO] Verification Results for batch_date 2026-06-28:
+2026-06-29 15:15:09,370 [INFO]  - Row Count: Source = 180 | Database = 180
+2026-06-29 15:15:09,370 [INFO]  - GPA Sum: Source = 540.17 | Database = 540.17
+2026-06-29 15:15:09,370 [INFO]  - Credits Sum: Source = 11599 | Database = 11599
+2026-06-29 15:15:09,370 [INFO]  - Expected Salary Sum: Source = 6481500 | Database = 6481500
+2026-06-29 15:15:09,370 [INFO] QC checks PASSED successfully.
+2026-06-29 15:15:09,372 [INFO] Run RUN_ID_001 completed successfully.
+
+2026-06-29 15:15:10,114 [INFO] [Orchestrator] ✅ Pipeline executed successfully.
 
 Row count in trusted_student_snapshot table after RUN 1: 180 (Expected: 180)
 
 --- RUN 2: Re-running the pipeline for the same date (Idempotency Check) ---
-Executing: python3 pipeline.py --business-date 2026-06-28 --run-id RUN_ID_002
-2026-06-29 11:43:47,941 [INFO] Starting run RUN_ID_002 for business date 2026-06-28
-2026-06-29 11:43:47,941 [INFO] Step 1: Reading Excel file for Raw layer...
-2026-06-29 11:43:48,009 [INFO] Loaded 180 rows from source file.
-2026-06-29 11:43:48,026 [INFO] Raw layer saved to data/raw/raw_workshop_data_2026-06-28.parquet
-2026-06-29 11:43:48,026 [INFO] Step 2: Processing Staging layer...
-2026-06-29 11:43:48,030 [INFO] Staging layer saved to data/stg/stg_student_snapshot_2026-06-28.parquet
-2026-06-29 11:43:48,030 [INFO] Step 3: Loading into Trusted layer (DuckDB)...
-2026-06-29 11:43:48,032 [INFO] Cleaning existing records for snapshot_date: 2026-06-28 to prevent duplication...
-2026-06-29 11:43:48,037 [INFO] Successfully loaded 180 rows into trusted_student_snapshot table.
-2026-06-29 11:43:48,037 [INFO] Successfully created/updated analytics_student_summary view.
-2026-06-29 11:43:48,037 [INFO] Step 4: Running Quality Control Checks...
-2026-06-29 11:43:48,038 [INFO] Verification Results for batch_date 2026-06-28:
-2026-06-29 11:43:48,038 [INFO]  - Row Count: Source = 180 | Database = 180
-2026-06-29 11:43:48,038 [INFO]  - GPA Sum: Source = 540.17 | Database = 540.17
-2026-06-29 11:43:48,038 [INFO]  - Credits Sum: Source = 11599 | Database = 11599
-2026-06-29 11:43:48,038 [INFO]  - Expected Salary Sum: Source = 6481500 | Database = 6481500
-2026-06-29 11:43:48,038 [INFO] QC checks PASSED successfully.
-2026-06-29 11:43:48,038 [INFO] Run RUN_ID_002 completed successfully.
+Executing: python3 src/orchestrate.py --business-date 2026-06-28 --run-id RUN_ID_002
+2026-06-29 15:15:10,185 [INFO] [Orchestrator] GEMINI_API_KEY is not set. Vector embeddings use local Nomic Embed v1.5; Gemini is only needed for LLM answer generation in the dashboard.
+2026-06-29 15:15:10,185 [WARNING] [Orchestrator] PII_ENCRYPTION_KEY environment variable is NOT set. The pipeline will fallback to a default encryption key (unsafe for production!).
+2026-06-29 15:15:10,185 [INFO] [Orchestrator] Attempt 1/4: Starting pipeline execution...
+2026-06-29 15:15:13,250 [INFO] Starting run RUN_ID_002 for business date 2026-06-28
+2026-06-29 15:15:13,250 [INFO] Step 1: Reading Excel file for Raw layer...
+2026-06-29 15:15:13,328 [INFO] Loaded 180 rows from source file.
+2026-06-29 15:15:13,356 [INFO] Raw layer saved to data/raw/raw_workshop_data_2026-06-28.parquet
+2026-06-29 15:15:13,356 [INFO] Step 2: Processing Staging layer...
+2026-06-29 15:15:13,357 [WARNING] PII_ENCRYPTION_KEY env var not set. Ingesting PII as plaintext (complying with default brief spec).
+2026-06-29 15:15:13,358 [INFO] Generating local vector embeddings using nomic-ai/nomic-embed-text-v1.5...
+2026-06-29 15:15:13,371 [INFO] Use pytorch device_name: mps
+2026-06-29 15:15:13,371 [INFO] Load pretrained SentenceTransformer: nomic-ai/nomic-embed-text-v1.5
+2026-06-29 15:15:13,667 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:13,668 [WARNING] Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-06-29 15:15:13,679 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/modules.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:13,947 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:13,960 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config_sentence_transformers.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:14,228 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:14,239 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config_sentence_transformers.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:14,508 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:14,520 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/README.md "HTTP/1.1 200 OK"
+2026-06-29 15:15:14,788 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:14,800 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/modules.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:15,063 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:15,075 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:15,355 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-06-29 15:15:15,617 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:15,629 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:15,895 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-bert-2048/resolve/main/configuration_hf_nomic_bert.py "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:15,906 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-bert-2048/7710840340a098cfb869c4f65e87cf2b1b70caca/configuration_hf_nomic_bert.py "HTTP/1.1 200 OK"
+2026-06-29 15:15:16,263 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:16,276 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:16,546 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-bert-2048/resolve/main/modeling_hf_nomic_bert.py "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:16,559 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-bert-2048/7710840340a098cfb869c4f65e87cf2b1b70caca/modeling_hf_nomic_bert.py "HTTP/1.1 200 OK"
+2026-06-29 15:15:18,137 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/pytorch_model.bin "HTTP/1.1 404 Not Found"
+2026-06-29 15:15:18,521 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/model.safetensors "HTTP/1.1 302 Found"
+2026-06-29 15:15:18,908 [WARNING] <All keys matched successfully>
+2026-06-29 15:15:19,173 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:19,184 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:19,443 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-bert-2048/resolve/main/configuration_hf_nomic_bert.py "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:19,454 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-bert-2048/7710840340a098cfb869c4f65e87cf2b1b70caca/configuration_hf_nomic_bert.py "HTTP/1.1 200 OK"
+2026-06-29 15:15:19,739 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:19,752 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:20,024 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:20,036 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:20,303 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:20,314 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:20,584 [INFO] HTTP Request: GET https://huggingface.co/api/models/nomic-ai/nomic-embed-text-v1.5/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-06-29 15:15:20,857 [INFO] HTTP Request: GET https://huggingface.co/api/models/nomic-ai/nomic-embed-text-v1.5/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-06-29 15:15:21,161 [INFO] HTTP Request: HEAD https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-06-29 15:15:21,174 [INFO] HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/nomic-ai/nomic-embed-text-v1.5/e9b6763023c676ca8431644204f50c2b100d9aab/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-06-29 15:15:21,487 [INFO] HTTP Request: GET https://huggingface.co/api/models/nomic-ai/nomic-embed-text-v1.5 "HTTP/1.1 200 OK"
+2026-06-29 15:15:25,542 [INFO] Successfully generated local embeddings for all staging records.
+2026-06-29 15:15:25,575 [INFO] Staging layer saved to data/stg/stg_student_snapshot_2026-06-28.parquet
+2026-06-29 15:15:25,575 [INFO] Step 3: Loading into Trusted layer (DuckDB)...
+2026-06-29 15:15:25,581 [INFO] Cleaning existing records for snapshot_date: 2026-06-28 to prevent duplication...
+2026-06-29 15:15:25,596 [INFO] Successfully loaded 180 rows into trusted_student_snapshot table.
+2026-06-29 15:15:25,596 [INFO] Successfully created/updated analytics_student_summary view.
+2026-06-29 15:15:25,596 [INFO] Step 4: Running Quality Control Checks...
+2026-06-29 15:15:25,597 [INFO] Verification Results for batch_date 2026-06-28:
+2026-06-29 15:15:25,597 [INFO]  - Row Count: Source = 180 | Database = 180
+2026-06-29 15:15:25,597 [INFO]  - GPA Sum: Source = 540.17 | Database = 540.17
+2026-06-29 15:15:25,597 [INFO]  - Credits Sum: Source = 11599 | Database = 11599
+2026-06-29 15:15:25,597 [INFO]  - Expected Salary Sum: Source = 6481500 | Database = 6481500
+2026-06-29 15:15:25,597 [INFO] QC checks PASSED successfully.
+2026-06-29 15:15:25,598 [INFO] Run RUN_ID_002 completed successfully.
+
+2026-06-29 15:15:26,229 [INFO] [Orchestrator] ✅ Pipeline executed successfully.
 
 Row count in trusted_student_snapshot table after RUN 2: 180 (Expected: 180 - if higher, idempotency failed!)
 
@@ -50,5 +150,5 @@ Row count in trusted_student_snapshot table after RUN 2: 180 (Expected: 180 - if
 
 --- 📋 Audit Log Table ('batch_audit') ---
        run_id business_date                 start_time                   end_time   status  source_count  loaded_count  rejected_count
-0  RUN_ID_001    2026-06-28 2026-06-29 11:43:47.495762 2026-06-29 11:43:47.631868  SUCCESS           180           180               0
-1  RUN_ID_002    2026-06-28 2026-06-29 11:43:47.935361 2026-06-29 11:43:48.038408  SUCCESS           180           180               0
+0  RUN_ID_001    2026-06-28 2026-06-29 15:14:55.853589 2026-06-29 15:15:09.370976  SUCCESS           180           180               0
+1  RUN_ID_002    2026-06-28 2026-06-29 15:15:13.244761 2026-06-29 15:15:25.597848  SUCCESS           180           180               0
