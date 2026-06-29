@@ -145,6 +145,22 @@ def main():
         loaded_count = len(stg_df)
         logger.info(f"Successfully loaded {loaded_count} rows into trusted_student_snapshot table.")
         
+        # Create or Replace Analytics View as defined in Data Specification
+        con.execute("""
+            CREATE OR REPLACE VIEW analytics_student_summary AS 
+            SELECT 
+                campus,
+                program_name,
+                status,
+                COUNT(*) AS total_students,
+                ROUND(AVG(gpa), 2) AS average_gpa,
+                ROUND(AVG(credit_earned), 1) AS average_credits,
+                ROUND(AVG(expected_salary_thb), 0) AS average_expected_salary
+            FROM trusted_student_snapshot
+            GROUP BY campus, program_name, status
+        """)
+        logger.info("Successfully created/updated analytics_student_summary view.")
+        
         # ==========================================
         # 4. QUALITY CONTROL SUMMARY CHECKS
         # ==========================================
