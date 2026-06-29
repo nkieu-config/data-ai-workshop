@@ -6,6 +6,7 @@ import argparse
 import logging
 import pandas as pd
 import duckdb
+from cryptography.fernet import Fernet
 
 # Configure Logging
 logging.basicConfig(
@@ -108,6 +109,22 @@ def main():
         stg_df['expected_salary_thb'] = pd.to_numeric(stg_df['expected_salary_thb'], errors='coerce').fillna(0).astype(int)
         stg_df['snapshot_date'] = stg_df['snapshot_date'].astype(str)
         stg_df['entity_id'] = stg_df['entity_id'].astype(str)
+        
+        # PII Encryption (Instructor requested deviation from original spec)
+        # We use a static key for workshop idempotency so re-runs produce same ciphertext
+        STATIC_KEY = b'6QkUf3k_4P12GfI8zJ9wE8bN6nJ0tX8qW2qV7fN5vL0='
+        f = Fernet(STATIC_KEY)
+        
+        def encrypt_val(val):
+            if pd.isna(val):
+                return val
+            return f.encrypt(str(val).encode('utf-8')).decode('utf-8')
+            
+        pii_cols = ['citizen_id', 'mobile', 'email', 'student_name']
+        for col in pii_cols:
+            if col in stg_df.columns:
+                stg_df[col] = stg_df[col].apply(encrypt_val)
+                logger.info(f"Encrypted PII column: {col}")
         
         # Deduplication Rule: unique (entity_id, snapshot_date)
         initial_len = len(stg_df)
